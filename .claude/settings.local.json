@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pnpm --version)",
+      "Bash(git --version)",
+      "Bash(docker --version)",
+      "Bash(corepack enable *)",
+      "Bash(corepack prepare *)",
+      "PowerShell(corepack *)",
+      "PowerShell(npm install *)",
+      "PowerShell(pnpm install *)",
+      "PowerShell(git *)",
+      "PowerShell(pnpm turbo *)",
+      "PowerShell(pnpm *)",
+      "PowerShell(Stop-Process *)",
+      "PowerShell(\"=== ROOT ===\"; Get-ChildItem -Force | Where-Object { $_.Name -notin @\\('node_modules','.git'\\) } | Select-Object Mode,Length,Name | Format-Table -AutoSize | Out-String; \"=== APPS ===\"; Get-ChildItem apps -Recurse -File -Depth 3 | Where-Object { $_.FullName -notmatch 'node_modules|\\\\.next|\\\\.turbo|dist' } | Select-Object FullName | Format-Table -AutoSize | Out-String; \"=== PACKAGES ===\"; Get-ChildItem packages -Recurse -File -Depth 3 | Where-Object { $_.FullName -notmatch 'node_modules|\\\\.next|\\\\.turbo|dist' } | Select-Object FullName | Format-Table -AutoSize | Out-String)",
+      "PowerShell(Get-Command *)",
+      "PowerShell(node \"C:\\\\Users\\\\leand\\\\AppData\\\\Roaming\\\\npm\\\\node_modules\\\\pnpm\\\\bin\\\\pnpm.cjs\" --version)",
+      "PowerShell(\"=== ROOT ===\"; Get-ChildItem -Force | Where-Object { $_.Name -notin @\\('node_modules','.git','.turbo'\\) } | Select-Object Mode,Length,Name | Format-Table -AutoSize | Out-String; \"=== TREE \\(src + key files\\) ===\"; Get-ChildItem -Recurse -File -Path apps,packages,infra,.github | Where-Object { $_.FullName -notmatch 'node_modules|\\\\.next|\\\\.turbo|dist|tsbuildinfo' } | Sort-Object FullName | ForEach-Object { $_.FullName.Replace\\(\\(Get-Location\\).Path + '\\\\',''\\) })"
+    ]
+  }
+}

@@ -1,0 +1,15 @@
+packages:
+  - 'apps/*'
+  - 'packages/*'
+
+# Native postinstall build scripts that we explicitly trust.
+# esbuild: bundler (tsx, next-server transforms)
+# sharp: Next.js Image optimization
+# unrs-resolver: rspack/rolldown resolver used by Next.js toolchain
+allowBuilds:
+  esbuild: true
+  sharp: true
+  unrs-resolver: true
+  '@prisma/client': true
+  prisma: true
+  '@prisma/engines': true
