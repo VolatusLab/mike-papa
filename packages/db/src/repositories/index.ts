@@ -8,6 +8,8 @@ export {
   WarrantRepository,
   type WarrantUpsertInput,
   type ListWarrantsOptions,
+  type WarrantWithCity,
+  type StatusCount,
 } from './warrant.repository.js';
 export {
   WarrantHistoryRepository,
@@ -26,3 +28,4 @@ export {
   type DecryptedBnmpSession,
 } from './bnmp-session.repository.js';
 export { PdfAssetRepository, type UpsertPdfAssetInput } from './pdf-asset.repository.js';
+export { InvitationRepository, type CreateInvitationInput } from './invitation.repository.js';

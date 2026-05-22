@@ -29,6 +29,10 @@ export class UserRepository {
     });
   }
 
+  countByTenant(tenantId: string): Promise<number> {
+    return this.prisma.user.count({ where: { tenantId } });
+  }
+
   create(input: CreateUserInput): Promise<User> {
     return this.prisma.user.create({
       data: {

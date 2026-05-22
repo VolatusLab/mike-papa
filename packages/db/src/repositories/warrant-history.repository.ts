@@ -37,4 +37,12 @@ export class WarrantHistoryRepository {
       skip: opts.offset ?? 0,
     });
   }
+
+  /** Most recent change for one warrant — used by the alert handler to label kind. */
+  findLatestForWarrant(tenantId: string, warrantId: string): Promise<WarrantHistory | null> {
+    return this.prisma.warrantHistory.findFirst({
+      where: { tenantId, warrantId },
+      orderBy: { detectedAt: 'desc' },
+    });
+  }
 }

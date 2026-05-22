@@ -12,11 +12,20 @@
     "build": "tsc -p tsconfig.json",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src --max-warnings 0",
-    "clean": "rimraf dist .turbo *.tsbuildinfo"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "clean": "rimraf .turbo *.tsbuildinfo coverage"
   },
-  "dependencies": {},
+  "dependencies": {
+    "@bnmp/logger": "workspace:*",
+    "@bnmp/shared": "workspace:*",
+    "axios": "^1.7.9",
+    "bottleneck": "^2.19.5"
+  },
   "devDependencies": {
+    "@vitest/coverage-v8": "^2.1.8",
     "rimraf": "^6.0.1",
-    "typescript": "^5.7.3"
+    "typescript": "^5.7.3",
+    "vitest": "^2.1.8"
   }
 }

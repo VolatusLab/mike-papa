@@ -52,6 +52,18 @@ export class AlertRepository {
     });
   }
 
+  /** Alert counts per status — for the admin dashboard. */
+  async countByStatus(tenantId: string): Promise<Record<AlertStatus, number>> {
+    const groups = await this.prisma.alert.groupBy({
+      by: ['status'],
+      where: { tenantId },
+      _count: { _all: true },
+    });
+    const out: Record<AlertStatus, number> = { PENDING: 0, SENT: 0, FAILED: 0, SKIPPED: 0 };
+    for (const g of groups) out[g.status] = g._count._all;
+    return out;
+  }
+
   async markSent(id: string): Promise<void> {
     await this.prisma.alert.update({
       where: { id },

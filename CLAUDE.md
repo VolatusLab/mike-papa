@@ -23,16 +23,16 @@ Stack: pnpm + Turborepo monorepo · Next.js 15 (Vercel) · Node worker (Docker) 
 ## 3. Estrutura
 
 ```
-apps/web        Next.js 15 App Router (Vercel)
-apps/worker     orchestrator — registra handlers, health, shutdown
-packages/shared schemas zod, env, errors, constants (BNMP enums, JOB_NAMES)
-packages/db     Prisma client + repositories (acesso ao banco SOMENTE aqui)
-packages/bnmp   client/, session/, parsers/, pdf/, rate-limit/, normalizers/, dto/, types/, utils/
-packages/queue  pg-boss wrapper: startBoss, registerWorker, publishJob, scheduleCron
-packages/telegram  TelegramService (sendMessage, sendDocument)
-packages/logger pino: createLogger, newCorrelationId, withCorrelation
-infra/docker    Dockerfile.worker + docker-compose.yml
-prisma          schema canônico
+apps/web              Next.js 15 App Router (Vercel)
+apps/worker           orchestrator — registra handlers, health, shutdown
+packages/shared       schemas zod, env, errors, constants (BNMP enums, JOB_NAMES)
+packages/db           Prisma schema + client + repositories + crypto AES-GCM (acesso ao banco SOMENTE aqui)
+packages/db/prisma    schema.prisma, seed.ts, rls.sql (canônicos)
+packages/bnmp         client/, session/, parsers/, pdf/, rate-limit/, normalizers/, dto/, types/, utils/
+packages/queue        pg-boss wrapper: startBoss, registerWorker, publishJob, scheduleCron
+packages/telegram     TelegramService (sendMessage, sendDocument)
+packages/logger       pino: createLogger, newCorrelationId, withCorrelation
+infra/docker          Dockerfile.worker + docker-compose.yml
 ```
 
 ## 4. Convenções
@@ -75,10 +75,14 @@ SIM: editar só arquivos afetados; diffs objetivos; reusar contexto existente; c
 - pg-boss: retryLimit=5 default, retryBackoff, expireInHours=24, deleteAfterDays=14.
 - Handlers idempotentes. Dedupe via `singletonKey` em `publishSingletonJob`.
 
-## 9. Banco (entidades planejadas — Etapa 3)
+## 9. Banco (Etapa 3 — DONE)
 
-`Tenant` `User` `MonitoredCity` `Warrant` `WarrantHistory` `TelegramConfig` `Alert` `WorkerLog` `BnmpSession` `PdfAsset`.
-Índices: `(tenantId, bnmpId)` unique · `(tenantId, dataExpedicao DESC)` · `Alert(status)` · `WarrantHistory(warrantId, detectedAt)`.
+Entidades: `Tenant` `User` `MonitoredCity` `Warrant` `WarrantHistory` `TelegramConfig` `Alert` `WorkerLog` `BnmpSession` `PdfAsset`.
+Enums: `Role(ADMIN|MODERATOR|USER)` · `AlertStatus(PENDING|SENT|FAILED|SKIPPED)` · `WarrantChangeKind(CREATED|UPDATED|STATUS_CHANGED|REVOKED|REPUBLISHED)`.
+Índices críticos: `Warrant(tenantId, bnmpId)` unique · `Warrant(tenantId, dataExpedicao DESC)` · `Alert(status, createdAt)` · `WarrantHistory(warrantId, detectedAt DESC)` · `PdfAsset(tenantId, sha256)` unique.
+Encriptação: AES-256-GCM para `TelegramConfig.botTokenEnc` e `BnmpSession.cookieEnc` via `encryptSecret/decryptSecret` (chave `ENCRYPTION_KEY`).
+RLS: ver `packages/db/prisma/rls.sql`. Helpers `public.current_tenant_id()` e `public.current_user_role()` derivam de `auth.uid()`. Service-role bypassa RLS (worker usa SERVICE_ROLE_KEY).
+Comandos: `pnpm --filter @bnmp/db db:{generate,migrate,migrate:deploy,seed,rls,studio,reset}` — ver `packages/db/README.md`.
 
 ## 10. Performance & Segurança
 
@@ -91,21 +95,36 @@ SIM: editar só arquivos afetados; diffs objetivos; reusar contexto existente; c
 ## 11. STATUS
 
 ```
-CURRENT_STAGE: 2 — DONE
-LAST_COMPLETED:
-  - Stage 1: monorepo bootstrap (pnpm@10.33.4 + turbo + Next15 + worker placeholder)
-  - Stage 2:
-    - packages/shared: env (zod), errors (AppError), constants (BNMP enums, SEED_CITIES, JOB_NAMES + typed payloads)
-    - packages/logger: pino real (JSON prod / pretty dev, correlationId, withCorrelation, redact list)
-    - packages/queue: pg-boss wrapper (startBoss, registerWorker, publishJob, scheduleCron, snapshotQueues, RETRY_POLICY)
-    - packages/bnmp: internal carve-out (client/, session/, parsers/, pdf/, rate-limit/, normalizers/, dto/, types/, utils/)
-    - apps/worker: real orchestration — env validation, pg-boss boot, stub handlers for all 5 JOB_NAMES, HTTP /health/live /health/ready /health/worker (with queue depth), SIGINT/SIGTERM graceful shutdown (LIFO), heartbeat every 60s
-    - infra/docker: Dockerfile.worker (node:22-alpine, tini, non-root, healthcheck) + docker-compose.yml (postgres 16 + worker) + .dockerignore
-    - .env.example × 3 (root + web + worker), .github/workflows/ci.yml (verify + docker-worker build)
-    - 24/24 turbo tasks green (typecheck + lint + build); web build 102 kB First Load JS
-NEXT_STEP: Stage 3 — Prisma schema (Tenant/User/MonitoredCity/Warrant/WarrantHistory/TelegramConfig/Alert/WorkerLog/BnmpSession/PdfAsset) + Supabase migrations + RLS policies + seed Palmeirópolis/Peixe/Ceres/Rialma (idMunicipio reais via /api/pesquisa-pecas/orgaos/municipio)
-BLOCKERS:
-  - idMunicipio reais de Peixe/Ceres/Rialma ainda placeholders (preencher via crawler em Stage 3)
-  - Supabase project não provisionado (precisa rodar manualmente ou via Vercel Marketplace antes de Stage 3)
-  - Docker compose build não foi testado nesta máquina (estrutura correta; iterar quando deployar)
+CURRENT_STAGE: 10 — DONE · PROJETO COMPLETO (10/10 etapas)
+LAST_COMPLETED (resumo — detalhe nas §3-10):
+  - Stage 1-2: monorepo pnpm@10.33.4 + turbo + Next15 + worker orchestration + Docker + CI
+  - Stage 3: Prisma schema + AES-GCM crypto + repos + seed + RLS
+  - Stage 4: Supabase Auth + RBAC + middleware + auth pages/forms
+  - Stage 5: packages/bnmp real (parsers/normalizers/session/rate-limit/client)
+  - Stage 6: worker handlers reais (scan/retro/recheck) + warrant-sync diff + scheduler
+  - Stage 7: packages/telegram real (BotApiClient + format MD-V2 + rate-limit) + handler
+  - Stage 8: bnmp/pdf downloadPdf + worker storage (Supabase Storage) + pdf-download (dedup SHA256)
+  - Stage 9: dashboard admin (mandados/cidades/telegram/admin/users + analytics + worker health)
+  - Stage 10 — SaaS multi-tenant hardening:
+    - Prisma: model Invitation + enum InvitationStatus (PENDING/ACCEPTED/REVOKED/EXPIRED)
+    - InvitationRepository (create token-based, listPending, findActiveByEmail, markAccepted, revoke)
+    - repos count: MonitoredCity.count, User.countByTenant, TelegramConfig.countByTenant
+    - rls.sql: policies de invitations (ADMIN-only)
+    - @bnmp/shared/constants/plans — PLAN_LIMITS free/pro/enterprise + planLimits() + checkLimit() + vitest (10 testes)
+    - ensureLocalUserRow REESCRITO: 1º login → convite pendente por email entra no tenant+role; senão cria tenant próprio e vira ADMIN (self-serve SaaS — fim do "Default Tenant + SQL manual")
+    - lib/plan.ts — getTenantUsage + canAddCity/canAddMember/canAddTelegramConfig
+    - limites enforced: createCityAction, upsertTelegramConfigAction (só novos), createInvitationAction
+    - lib/invitations/actions — createInvitationAction (ADMIN) + revokeInvitationAction
+    - /admin/users — InviteForm + tabela de convites pendentes (revogar)
+    - /admin — card Plano e uso (barras cidades/membros/telegram vs limites)
+    - DEPLOY.md — runbook Supabase/Vercel/Railway · .env.example completo
+    - turbo: 27/27 verdes (typecheck+lint+test+build); 60 testes vitest (38 bnmp + 12 telegram + 10 shared)
+NEXT_STEP: nenhuma etapa pendente — sistema completo. Próximo é provisionar Supabase e fazer deploy (ver DEPLOY.md).
+BLOCKERS / PENDÊNCIAS OPERACIONAIS (não-código):
+  - Supabase project não provisionado — necessário para teste e2e e deploy (tudo só typechecked/built com stub envs)
+  - Smoke BNMP real não executado (`pnpm --filter @bnmp/worker smoke`)
+  - Bucket Supabase Storage criar no provisioning (nome = SUPABASE_STORAGE_BUCKET, default 'bnmp-pdfs')
+  - Migration SQL inicial gerada no 1º `db:migrate dev --name init` contra DB real
+  - shadcn/ui nunca foi inicializado — UI usa primitives próprias (Button/Input/Table/etc); migração futura opcional
+  - Billing real (Stripe) fora de escopo — upgrade de plano = UPDATE Tenant.plan
 ```

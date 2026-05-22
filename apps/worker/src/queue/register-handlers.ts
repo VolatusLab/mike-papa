@@ -1,37 +1,77 @@
-import type PgBoss from 'pg-boss';
-import type { Logger } from '@bnmp/logger';
-import { registerWorker, type WorkOptions } from '@bnmp/queue';
-import { JOB_NAMES, type JobName } from '@bnmp/shared';
-
-interface HandlerSpec {
-  name: JobName;
-  options: WorkOptions;
-}
-
-// Concurrency tuned conservatively. Real handlers arrive in Etapas 6–8.
-const HANDLER_SPECS: readonly HandlerSpec[] = [
-  { name: JOB_NAMES.BNMP_SCAN_CITY, options: { teamSize: 4, teamConcurrency: 2 } },
-  { name: JOB_NAMES.BNMP_RETROACTIVE_SCAN, options: { teamSize: 1, teamConcurrency: 1 } },
-  { name: JOB_NAMES.WARRANT_RECHECK, options: { teamSize: 2, teamConcurrency: 1 } },
-  { name: JOB_NAMES.PDF_DOWNLOAD, options: { teamSize: 2, teamConcurrency: 1 } },
-  { name: JOB_NAMES.TELEGRAM_SEND_ALERT, options: { teamSize: 2, teamConcurrency: 1 } },
-];
+import { JOB_NAMES } from '@bnmp/shared';
+import { registerWorker } from '@bnmp/queue';
+import type { WorkerServices } from '../services/index.js';
+import {
+  makePdfDownloadHandler,
+  makeRetroactiveScanHandler,
+  makeRetroactiveTickHandler,
+  makeScanCityHandler,
+  makeScanTickHandler,
+  makeTelegramSendAlertHandler,
+  makeWarrantRecheckHandler,
+} from '../handlers/index.js';
 
 /**
- * Stage 2: register stub handlers so pg-boss knows the queues exist and
- * doesn't reject sends. Each handler logs and no-ops. Real implementations
- * replace these in the relevant later stages.
+ * Wire every JOB_NAME to its handler. Concurrency tuned per workload:
+ *   - ticks         → 1 / 1   (fanout is cheap; multiple in-flight would dup-queue)
+ *   - scan-city     → 4 / 2   (network-bound; multi-tenant parallelism)
+ *   - retroactive-scan → 1 / 1 (heavy multi-page traversal)
+ *   - warrant-recheck → 2 / 1
+ *   - telegram-send-alert → 3 / 2 (network-bound; per-chat limiter inside service)
+ *   - pdf-download  → 2 / 1   (download + storage upload)
  */
-export async function registerAllHandlers(boss: PgBoss, logger: Logger): Promise<void> {
-  for (const spec of HANDLER_SPECS) {
-    await registerWorker(
-      boss,
-      logger,
-      spec.name,
-      async (_job, log) => {
-        log.warn({ stage: 2 }, 'handler:not-implemented');
-      },
-      spec.options,
-    );
-  }
+export async function registerAllHandlers(services: WorkerServices): Promise<void> {
+  const { boss, logger } = services;
+
+  await registerWorker(boss, logger, JOB_NAMES.BNMP_SCAN_TICK, makeScanTickHandler(services), {
+    teamSize: 1,
+    teamConcurrency: 1,
+  });
+  await registerWorker(
+    boss,
+    logger,
+    JOB_NAMES.BNMP_RETROACTIVE_TICK,
+    makeRetroactiveTickHandler(services),
+    {
+      teamSize: 1,
+      teamConcurrency: 1,
+    },
+  );
+
+  await registerWorker(boss, logger, JOB_NAMES.BNMP_SCAN_CITY, makeScanCityHandler(services), {
+    teamSize: 4,
+    teamConcurrency: 2,
+  });
+  await registerWorker(
+    boss,
+    logger,
+    JOB_NAMES.BNMP_RETROACTIVE_SCAN,
+    makeRetroactiveScanHandler(services),
+    {
+      teamSize: 1,
+      teamConcurrency: 1,
+    },
+  );
+  await registerWorker(
+    boss,
+    logger,
+    JOB_NAMES.WARRANT_RECHECK,
+    makeWarrantRecheckHandler(services),
+    {
+      teamSize: 2,
+      teamConcurrency: 1,
+    },
+  );
+
+  await registerWorker(boss, logger, JOB_NAMES.PDF_DOWNLOAD, makePdfDownloadHandler(services), {
+    teamSize: 2,
+    teamConcurrency: 1,
+  });
+  await registerWorker(
+    boss,
+    logger,
+    JOB_NAMES.TELEGRAM_SEND_ALERT,
+    makeTelegramSendAlertHandler(services),
+    { teamSize: 3, teamConcurrency: 2 },
+  );
 }

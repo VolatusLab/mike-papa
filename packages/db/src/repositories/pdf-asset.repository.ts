@@ -18,6 +18,10 @@ export class PdfAssetRepository {
     });
   }
 
+  findById(tenantId: string, id: string): Promise<PdfAsset | null> {
+    return this.prisma.pdfAsset.findFirst({ where: { id, tenantId } });
+  }
+
   upsert(tenantId: string, input: UpsertPdfAssetInput): Promise<PdfAsset> {
     return this.prisma.pdfAsset.upsert({
       where: { tenant_sha_unique: { tenantId, sha256: input.sha256 } },

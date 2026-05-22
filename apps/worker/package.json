@@ -8,6 +8,7 @@
     "dev": "tsx watch src/index.ts",
     "build": "tsc -p tsconfig.json",
     "start": "tsx src/index.ts",
+    "smoke": "tsx src/smoke.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint src --max-warnings 0",
     "clean": "rimraf dist .turbo *.tsbuildinfo"
@@ -19,6 +20,7 @@
     "@bnmp/queue": "workspace:*",
     "@bnmp/shared": "workspace:*",
     "@bnmp/telegram": "workspace:*",
+    "@supabase/supabase-js": "^2.47.10",
     "pg-boss": "^10.1.6",
     "tsx": "^4.19.2"
   },

@@ -29,6 +29,18 @@ export class TelegramConfigRepository {
     });
   }
 
+  /** All configs owned by a user (active + inactive) — for the config UI. */
+  listByUser(userId: string): Promise<TelegramConfig[]> {
+    return this.prisma.telegramConfig.findMany({
+      where: { userId },
+      orderBy: { createdAt: 'asc' },
+    });
+  }
+
+  countByTenant(tenantId: string): Promise<number> {
+    return this.prisma.telegramConfig.count({ where: { tenantId } });
+  }
+
   /** Returns config with bot token decrypted in memory. Never log this object. */
   async findDecrypted(tenantId: string, id: string): Promise<DecryptedTelegramConfig | null> {
     const row = await this.findById(tenantId, id);

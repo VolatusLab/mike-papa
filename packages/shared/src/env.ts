@@ -38,11 +38,20 @@ export const workerEnvSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: nonEmpty,
   SUPABASE_STORAGE_BUCKET: nonEmpty.default('bnmp-pdfs'),
 
-  // BNMP
+  // BNMP — core
   BNMP_BASE_URL: url.default('https://portalbnmp.cnj.jus.br/bnmpportal'),
   BNMP_POLL_INTERVAL_CRON: nonEmpty.default('*/5 * * * *'),
   BNMP_RATE_LIMIT_RPM: z.coerce.number().int().positive().default(30),
   BNMP_USER_AGENT: nonEmpty.default('bnmp-monitor/0.0 (+contact@example.com)'),
+  BNMP_SESSION_POOL_SIZE: z.coerce.number().int().positive().default(2),
+  BNMP_MAX_CONCURRENT: z.coerce.number().int().positive().default(4),
+
+  // BNMP — scan tuning
+  BNMP_SCAN_MAX_PAGES: z.coerce.number().int().positive().default(3),
+  BNMP_SCAN_PAGE_SIZE: z.coerce.number().int().positive().max(100).default(50),
+  BNMP_RETROACTIVE_CRON: nonEmpty.default('0 3 * * *'),
+  BNMP_RETROACTIVE_START_PAGE: z.coerce.number().int().nonnegative().default(3),
+  BNMP_RETROACTIVE_END_PAGE: z.coerce.number().int().positive().default(20),
 
   // Telegram (fallback bot — per-tenant overrides live in DB)
   TELEGRAM_BOT_TOKEN_DEFAULT: nonEmpty.optional(),
@@ -78,6 +87,9 @@ export const webEnvSchema = z.object({
 
   // Crypto (used by server actions/routes that touch encrypted columns)
   ENCRYPTION_KEY: encryptionKey,
+
+  // Worker health endpoint — optional; admin page shows worker monitoring when set.
+  WORKER_HEALTH_URL: url.optional(),
 });
 
 export type WebEnv = z.infer<typeof webEnvSchema>;

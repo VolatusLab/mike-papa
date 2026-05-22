@@ -41,6 +41,7 @@ alter table public.alerts             enable row level security;
 alter table public.worker_logs        enable row level security;
 alter table public.pdf_assets         enable row level security;
 alter table public.bnmp_sessions      enable row level security;
+alter table public.invitations        enable row level security;
 
 -- ─── Policies ───────────────────────────────────────────────────────────────
 
@@ -121,6 +122,26 @@ create policy wl_select on public.worker_logs
 drop policy if exists pdf_select on public.pdf_assets;
 create policy pdf_select on public.pdf_assets
   for select using (tenant_id = public.current_tenant_id());
+
+-- Invitations: ADMIN of the tenant may read/manage; consumption is done
+-- service-side at sign-in sync (service_role bypasses RLS).
+drop policy if exists inv_select on public.invitations;
+create policy inv_select on public.invitations
+  for select using (
+    tenant_id = public.current_tenant_id()
+    and public.current_user_role() = 'ADMIN'
+  );
+
+drop policy if exists inv_modify on public.invitations;
+create policy inv_modify on public.invitations
+  for all using (
+    tenant_id = public.current_tenant_id()
+    and public.current_user_role() = 'ADMIN'
+  )
+  with check (
+    tenant_id = public.current_tenant_id()
+    and public.current_user_role() = 'ADMIN'
+  );
 
 -- bnmp_sessions: no anon/authenticated access at all (service_role only)
 -- (RLS enabled with no policies => all rows blocked for non-service roles)

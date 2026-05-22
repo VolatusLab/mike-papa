@@ -18,5 +18,6 @@ export type {
   WorkerLog,
   BnmpSession,
   PdfAsset,
+  Invitation,
 } from '@prisma/client';
-export { Role, AlertStatus, WarrantChangeKind } from '@prisma/client';
+export { Role, AlertStatus, WarrantChangeKind, InvitationStatus } from '@prisma/client';

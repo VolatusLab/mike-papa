@@ -25,6 +25,18 @@ export class MonitoredCityRepository {
     });
   }
 
+  /**
+   * CROSS-TENANT — only callable from the worker (service-role connection
+   * bypasses RLS). Used by the scan tick to fan out per-city jobs across all
+   * tenants. Web app must NEVER call this.
+   */
+  listAllActive(): Promise<MonitoredCity[]> {
+    return this.prisma.monitoredCity.findMany({
+      where: { ativo: true },
+      orderBy: [{ tenantId: 'asc' }, { nome: 'asc' }],
+    });
+  }
+
   list(tenantId: string, opts: ListOptions = {}): Promise<MonitoredCity[]> {
     return this.prisma.monitoredCity.findMany({
       where: { tenantId },
@@ -32,6 +44,10 @@ export class MonitoredCityRepository {
       take: clampLimit(opts.limit),
       skip: opts.offset ?? 0,
     });
+  }
+
+  count(tenantId: string): Promise<number> {
+    return this.prisma.monitoredCity.count({ where: { tenantId } });
   }
 
   upsert(tenantId: string, input: MonitoredCityUpsertInput): Promise<MonitoredCity> {
@@ -61,6 +77,27 @@ export class MonitoredCityRepository {
         ativo: input.ativo ?? true,
       },
     });
+  }
+
+  /** Partial update by id (tenant-scoped). Returns false if no row matched. */
+  async update(
+    tenantId: string,
+    id: string,
+    data: Partial<Omit<MonitoredCityUpsertInput, 'idSexo'>> & { idSexo?: number | null },
+  ): Promise<boolean> {
+    const r = await this.prisma.monitoredCity.updateMany({
+      where: { id, tenantId },
+      data,
+    });
+    return r.count === 1;
+  }
+
+  async setActive(tenantId: string, id: string, ativo: boolean): Promise<boolean> {
+    const r = await this.prisma.monitoredCity.updateMany({
+      where: { id, tenantId },
+      data: { ativo },
+    });
+    return r.count === 1;
   }
 
   async markScanned(tenantId: string, id: string): Promise<void> {

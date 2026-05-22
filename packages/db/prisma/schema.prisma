@@ -46,6 +46,13 @@ enum WarrantChangeKind {
   REPUBLISHED
 }
 
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+  EXPIRED
+}
+
 // ─── Tenancy / Auth ──────────────────────────────────────────────────────────
 
 model Tenant {
@@ -63,8 +70,31 @@ model Tenant {
   alerts          Alert[]
   workerLogs      WorkerLog[]
   pdfAssets       PdfAsset[]
+  invitations     Invitation[]
 
   @@map("tenants")
+}
+
+// Tenant membership invitations. Consumed at first sign-in by email match
+// (see @bnmp web ensureLocalUserRow). A signup with no pending invite gets
+// its own fresh tenant as ADMIN.
+model Invitation {
+  id         String           @id @default(uuid()) @db.Uuid
+  tenantId   String           @map("tenant_id") @db.Uuid
+  email      String
+  role       Role             @default(USER)
+  token      String           @unique
+  status     InvitationStatus @default(PENDING)
+  invitedBy  String           @map("invited_by") @db.Uuid
+  expiresAt  DateTime         @map("expires_at")
+  acceptedAt DateTime?        @map("accepted_at")
+  createdAt  DateTime         @default(now()) @map("created_at")
+
+  tenant Tenant @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([email, status])
+  @@index([tenantId, status])
+  @@map("invitations")
 }
 
 model User {

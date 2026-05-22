@@ -1,4 +1,4 @@
-// Normalizers — nomes, status, datas, órgãos.
-// Implementação real na Etapa 5.
-
-export const NORMALIZERS_MODULE = '@bnmp/bnmp/normalizers';
+export { normalizeName, deaccent, nameKey } from './name.js';
+export { parseIsoDate, formatIsoDate } from './date.js';
+export { canonicalizeStatus, type CanonicalStatus } from './status.js';
+export { canonicalize, snapshotHash } from './snapshot.js';

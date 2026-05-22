@@ -13,17 +13,27 @@ function loadKey(hexKey?: string): Buffer {
 }
 
 /**
- * Encrypt a UTF-8 string with AES-256-GCM. Returns a single Buffer in the format:
+ * Encrypt a UTF-8 string with AES-256-GCM. Returns a `Uint8Array<ArrayBuffer>` in the format:
  *   [ iv (12 bytes) | auth tag (16 bytes) | ciphertext (n bytes) ]
  * Persist as bytea (Prisma `Bytes`). A fresh random IV per call.
+ *
+ * Note: returns Uint8Array (not Buffer) because Prisma 6 typings reject
+ * Buffer<ArrayBufferLike> for Bytes columns (must be backed by ArrayBuffer,
+ * not SharedArrayBuffer).
  */
-export function encryptSecret(plaintext: string, hexKey?: string): Buffer {
+export function encryptSecret(plaintext: string, hexKey?: string): Uint8Array<ArrayBuffer> {
   const key = loadKey(hexKey);
   const iv = randomBytes(IV_LEN);
   const cipher = createCipheriv(ALGO, key, iv);
   const ciphertext = Buffer.concat([cipher.update(plaintext, 'utf8'), cipher.final()]);
   const tag = cipher.getAuthTag();
-  return Buffer.concat([iv, tag, ciphertext]);
+  // Backed by ArrayBuffer (not SharedArrayBuffer) so Prisma Bytes typings accept it.
+  const buffer = new ArrayBuffer(IV_LEN + TAG_LEN + ciphertext.length);
+  const out = new Uint8Array(buffer);
+  out.set(iv, 0);
+  out.set(tag, IV_LEN);
+  out.set(ciphertext, IV_LEN + TAG_LEN);
+  return out;
 }
 
 /** Inverse of `encryptSecret`. Throws on tampered ciphertext (GCM auth tag check). */
